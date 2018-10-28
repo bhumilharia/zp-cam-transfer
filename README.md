@@ -14,7 +14,7 @@ Of course, the transmitted data must be signed by the sender using their private
 public key for which is already assumed to be made available to the receiver prior to
 this data streaming.
 
-## Architecture / Design
+## General Architecture / Design
 The general flow and architecture is as follows
 
 ### Sender
@@ -22,7 +22,7 @@ The general flow and architecture is as follows
 Steps at the sender:
 - Receive user input `message` (text-based in this demo)
 - Calculate a `signature` for `message`. This is done by computing a hash of the 
-`message`, and then signing the hash by the sender's private key
+`message`, and then signing the hash by the sender's private key (and then base64 encoding it)
 - Break `message` into several chunks based on a pre-defined/configurable `chunk_size`.
 Let's say the total number of chunks is `N`
 - These chunks need to be transmitted, along with some metadata to enable
@@ -36,11 +36,12 @@ reconstruction at the receiver)
 - Sample "packets" that need to be sent:
     ```json
     {
+      "message_hash": "hex digest for identifying this message",
       "message_signature": signature,
       "total_chunks": N,
       "chunk_no": X,
       "chunk_data": "data for chunk number X",
-      "chunk_hash": "used to make sure that THIS packet's data is correctly transmitted"
+      "chunk_hash": "can be used to make sure that THIS packet's data is correctly transmitted"
     }
     ```
     The addition of "message_signature" and "total_chunks" to each content packet
