@@ -1,11 +1,10 @@
 import os
 
-from Cryptodome.PublicKey import RSA
 import click
 import pyqrcode
 
 from common import Message
-from conf import SENDER_DIR, CONFIG_DIR, PRIVATE_KEY
+from conf import SENDER_DIR, PRIVATE_KEY
 
 
 @click.command()
