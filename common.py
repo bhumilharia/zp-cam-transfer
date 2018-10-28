@@ -128,6 +128,10 @@ class MessageBuilder:
             print("Discarding packet {} because message signatures don't match".format(packet.chunk_index))
             return
 
+        if packet.chunk_index >= self._total_chunks:
+            print("Discarding packet {} because index is greater than total chunks".format(packet.chunk_index))
+            return
+
         self._packets[packet.chunk_index] = self._packets[packet.chunk_index] or packet
 
     def is_complete(self) -> bool:
