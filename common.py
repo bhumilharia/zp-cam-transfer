@@ -1,4 +1,4 @@
-from base64 import b64encode
+from base64 import b64encode, b64decode
 import json
 from typing import List
 
@@ -72,6 +72,10 @@ class Message:
         sign = signer.sign(self._hash_digest)
         self.signature = b64encode(sign).decode()
 
+    def verify_signature(self, signature: str, public_key: RsaKey) -> bool:
+        verifier = PKCS1_v1_5.new(public_key)
+        return verifier.verify(self._hash_digest, b64decode(signature.encode()))
+
     def construct_packets(self, max_packet_size: int) -> List[Packet]:
         if not self.signature:
             # this is silly, but since in the current design we don't have a special header
@@ -102,7 +106,8 @@ class MessageBuilder:
     Builder class used to reconstruct the full `Message`s using packets
     """
 
-    def __init__(self, message_hash: str, message_signature: str, total_chunks: int):
+    def __init__(self, message_hash: str, message_signature: str, total_chunks: int,
+                 public_key: RsaKey):
         self._message_hash = message_hash
         self._message_signature = message_signature
         self._total_chunks = total_chunks
@@ -112,6 +117,8 @@ class MessageBuilder:
         # came in to enable a more "dynamic" sizing, but that complicates the
         # is_complete check, so optimizing for simplicity over performance.
         self._packets = [None] * self._total_chunks  # type: List[Packet]
+
+        self._public_key = public_key
 
     def add_packet(self, packet: Packet):
         """
@@ -153,5 +160,8 @@ class MessageBuilder:
                                            self._message_hash,
                                            message.hash)
             )
+
+        if not message.verify_signature(self._message_signature, self._public_key):
+            raise Exception('Message constructed, but signature verification failed')
 
         return message
