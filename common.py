@@ -1,14 +1,23 @@
 import json
 from typing import List
 
+from utils import split_every
+
+_BASE_PKT_SIZE = len(json.dumps({
+    "message_signature": "",
+    "total_chunks": 999999,
+    "chunk_index": 999999,
+    "chunk_data": "",
+}))
+
 
 class Packet:
     """
     Represents each individual content packet to be transmitted
     """
 
-    def __init__(self, message_identifier: str, total_chunks: int, chunk_index: int, chunk_data: str):
-        self.message_identifier = message_identifier
+    def __init__(self, message_signature: str, total_chunks: int, chunk_index: int, chunk_data: str):
+        self.message_signature = message_signature
         self.total_chunks = total_chunks
         self.chunk_index = chunk_index
         self.chunk_data = chunk_data
@@ -16,7 +25,7 @@ class Packet:
 
     def serialize(self) -> str:
         return json.dumps({
-            "message_identifier": self.message_identifier,
+            "message_signature": self.message_signature,
             "total_chunks": self.total_chunks,
             "chunk_index": self.chunk_index,
             "chunk_data": self.chunk_data,
@@ -25,7 +34,7 @@ class Packet:
     @classmethod
     def deserialize(cls, serialized_packet: str) -> 'Packet':
         packet_dict = json.loads(serialized_packet)
-        packet = Packet(message_identifier=packet_dict['message_identifier'],
+        packet = Packet(message_signature=packet_dict['message_signature'],
                         total_chunks=packet_dict['total_chunks'],
                         chunk_index=packet_dict['chunk_index'],
                         chunk_data=packet_dict['chunk_data'])
@@ -39,6 +48,7 @@ class Message:
     """
 
     def __init__(self, message_str: str, expected_signature: str = None):
+        self.message = message_str
         self.message = message_str
         self.signature = self._get_signed_hash()
 
@@ -56,6 +66,19 @@ class Message:
     def construct_packets(self, max_packet_size: int) -> List[Packet]:
         packets = []
         # break into chunks based on chunk size, which is based on max packet size
+
+        chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.signature)
+        chunk_size = 2
+        if chunk_size < 0:
+            raise Exception("max_packet_size is too low, could not chunk")
+
+        chunks = list(split_every(chunk_size, self.message))
+        total_chunks = len(chunks)
+
+        for index, chunk_data in enumerate(chunks):
+            packet = Packet(self.signature, total_chunks, index, chunk_data)
+            packets.append(packet)
+
         return packets
 
 
@@ -63,6 +86,7 @@ class MessageBuilder:
     """
     Builder class used to reconstruct the full `Message`s using packets
     """
+
     def __init__(self, message_signature: str, total_chunks: int):
         self._message_signature = message_signature
         self._total_chunks = total_chunks
