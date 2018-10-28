@@ -1,6 +1,8 @@
 import json
 from typing import List
 
+from Crypto.Hash import SHA256
+
 from utils import split_every
 
 _BASE_PKT_SIZE = len(json.dumps({
@@ -52,7 +54,9 @@ class Message:
         self.hash = self._get_hash()
 
     def _get_hash(self):
-        return self.message
+        h = SHA256.new()
+        h.update(self.message.encode())
+        return h.hexdigest()
 
     def construct_packets(self, max_packet_size: int) -> List[Packet]:
         packets = []
