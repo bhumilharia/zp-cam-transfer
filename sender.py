@@ -5,7 +5,7 @@ import click
 import pyqrcode
 
 from common import Message
-from conf import SENDER_DIR, CONFIG_DIR
+from conf import SENDER_DIR, CONFIG_DIR, PRIVATE_KEY
 
 
 @click.command()
@@ -14,10 +14,6 @@ from conf import SENDER_DIR, CONFIG_DIR
 def send(message, debug):
     print('Sending message: {}'.format(message))
     print('Using configuration: debug = {}'.format(debug))
-
-    print('Reading private key from {}'.format(CONFIG_DIR))
-    with open(os.path.join(CONFIG_DIR, 'private_key'), 'r') as f:
-        private_key = RSA.import_key(f.read())
 
     if not os.path.exists(SENDER_DIR):
         print('Creating directory: '.format(SENDER_DIR))
@@ -29,7 +25,7 @@ def send(message, debug):
         os.remove(os.path.join(SENDER_DIR, filename))
 
     message = Message(message)
-    message.sign(private_key)
+    message.sign(PRIVATE_KEY)
 
     print('Constructing and transmitting packets')
     for packet in message.construct_packets(max_packet_size=550):

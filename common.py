@@ -32,14 +32,17 @@ class Packet:
         self.message_signature = message_signature
         # self.chunk_hash = "currently unused"
 
-    def serialize(self) -> str:
-        return json.dumps({
+    def to_json(self) -> dict:
+        return {
             "message_hash": self.message_hash,
             "message_signature": self.message_signature,
             "total_chunks": self.total_chunks,
             "chunk_index": self.chunk_index,
             "chunk_data": self.chunk_data,
-        })
+        }
+
+    def serialize(self) -> str:
+        return json.dumps(self.to_json())
 
     @classmethod
     def deserialize(cls, serialized_packet: str) -> 'Packet':
