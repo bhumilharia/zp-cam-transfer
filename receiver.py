@@ -43,6 +43,10 @@ def receive(ext):
     with open(os.path.join(CONFIG_DIR, 'public_key'), 'r') as f:
         public_key = RSA.import_key(f.read())
 
+    if not os.path.exists(RECEIVER_DIR):
+        print('Creating directory: '.format(RECEIVER_DIR))
+        os.makedirs(RECEIVER_DIR)
+
     messages_dict = dict()  # type: Dict[str, MessageBuilder]
 
     print('Looking for files in {}'.format(SENDER_DIR))
