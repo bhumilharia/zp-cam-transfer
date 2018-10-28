@@ -3,7 +3,7 @@ import os
 import click
 import pyqrcode
 
-from common import Message
+from message import Message
 from conf import SENDER_DIR, PRIVATE_KEY
 
 

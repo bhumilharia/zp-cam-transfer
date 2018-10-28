@@ -1,6 +1,6 @@
 from flask import Flask, send_from_directory, request, jsonify
 
-from common import Message
+from message import Message
 from conf import PRIVATE_KEY, MAX_PACKET_SIZE
 
 app = Flask(__name__)

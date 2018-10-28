@@ -7,7 +7,7 @@ import click
 from click import Choice
 from pyzbar.pyzbar import Decoded, decode
 
-from common import MessageBuilder, Packet
+from message import MessageBuilder, Packet
 from conf import CONFIG_DIR, SENDER_DIR, RECEIVER_DIR
 
 
