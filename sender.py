@@ -2,6 +2,7 @@ import os
 
 from Cryptodome.PublicKey import RSA
 import click
+import pyqrcode
 
 from common import Message
 from conf import SENDER_DIR, CONFIG_DIR
@@ -35,9 +36,17 @@ def send(message, medium, encoding):
     message.sign(private_key)
 
     for packet in message.construct_packets(max_packet_size=1000):
-        name = '{}_{}.txt'.format(packet.message_hash, packet.chunk_index)
-        with open(os.path.join(SENDER_DIR, name), 'w') as f:
-            f.write(packet.serialize())
+        packet_serialized = packet.serialize()
+        name = '{}_{}'.format(packet.message_hash, packet.chunk_index)
+        path_without_ext = os.path.join(SENDER_DIR, name)
+
+        # write to txt file
+        with open(path_without_ext + '.txt', 'w') as f:
+            f.write(packet_serialized)
+
+        # write to QR image file
+        qr = pyqrcode.create(packet_serialized)
+        qr.png(path_without_ext + '.png', scale=6)
 
 
 if __name__ == '__main__':
