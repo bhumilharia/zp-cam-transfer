@@ -3,7 +3,7 @@ import json
 from typing import List
 
 from Cryptodome.Hash import SHA256
-from Cryptodome.PublicKey import RSA
+from Cryptodome.PublicKey.RSA import RsaKey
 from Cryptodome.Signature import PKCS1_v1_5
 
 from utils import split_every
@@ -67,7 +67,7 @@ class Message:
     def hash(self) -> str:
         return self._hash_digest.hexdigest()
 
-    def sign(self, private_key: RSA):
+    def sign(self, private_key: RsaKey):
         signer = PKCS1_v1_5.new(private_key)
         sign = signer.sign(self._hash_digest)
         self.signature = b64encode(sign).decode()
@@ -113,7 +113,7 @@ class MessageBuilder:
         # is_complete check, so optimizing for simplicity over performance.
         self._packets = [None] * self._total_chunks  # type: List[Packet]
 
-    def add_packet(self, packet_index: int, packet: Packet):
+    def add_packet(self, packet: Packet):
         """
         Add a packet to build the message. If the packet has been seen before,
         it is simply discarded
@@ -128,7 +128,7 @@ class MessageBuilder:
             print("Discarding packet {} because message signatures don't match".format(packet.chunk_index))
             return
 
-        self._packets[packet_index] = self._packets[packet_index] or packet
+        self._packets[packet.chunk_index] = self._packets[packet.chunk_index] or packet
 
     def is_complete(self) -> bool:
         return all(v for v in self._packets)
@@ -149,8 +149,5 @@ class MessageBuilder:
                                            self._message_hash,
                                            message.hash)
             )
-
-        # verify signature here
-
 
         return message
