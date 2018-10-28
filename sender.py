@@ -17,7 +17,7 @@ def send(message, medium, encoding):
     message = Message(message)
 
     for packet in message.construct_packets(max_packet_size=1000):
-        name = 'temp/{}_{}'.format(packet.message_signature, packet.chunk_index)
+        name = 'temp/{}_{}'.format(packet.message_hash, packet.chunk_index)
         with open(name, 'w') as f:
             f.write(packet.serialize())
 

@@ -4,7 +4,7 @@ from typing import List
 from utils import split_every
 
 _BASE_PKT_SIZE = len(json.dumps({
-    "message_signature": "",
+    "message_hash": "",
     "total_chunks": 999999,
     "chunk_index": 999999,
     "chunk_data": "",
@@ -16,8 +16,8 @@ class Packet:
     Represents each individual content packet to be transmitted
     """
 
-    def __init__(self, message_signature: str, total_chunks: int, chunk_index: int, chunk_data: str):
-        self.message_signature = message_signature
+    def __init__(self, message_hash: str, total_chunks: int, chunk_index: int, chunk_data: str):
+        self.message_hash = message_hash
         self.total_chunks = total_chunks
         self.chunk_index = chunk_index
         self.chunk_data = chunk_data
@@ -25,7 +25,7 @@ class Packet:
 
     def serialize(self) -> str:
         return json.dumps({
-            "message_signature": self.message_signature,
+            "message_hash": self.message_hash,
             "total_chunks": self.total_chunks,
             "chunk_index": self.chunk_index,
             "chunk_data": self.chunk_data,
@@ -34,7 +34,7 @@ class Packet:
     @classmethod
     def deserialize(cls, serialized_packet: str) -> 'Packet':
         packet_dict = json.loads(serialized_packet)
-        packet = Packet(message_signature=packet_dict['message_signature'],
+        packet = Packet(message_hash=packet_dict['message_hash'],
                         total_chunks=packet_dict['total_chunks'],
                         chunk_index=packet_dict['chunk_index'],
                         chunk_data=packet_dict['chunk_data'])
@@ -47,27 +47,18 @@ class Message:
     Represents a (whole) message to be transmitted
     """
 
-    def __init__(self, message_str: str, expected_signature: str = None):
+    def __init__(self, message_str: str):
         self.message = message_str
-        self.message = message_str
-        self.signature = self._get_signed_hash()
+        self.hash = self._get_hash()
 
-        if expected_signature and expected_signature != self.signature:
-            raise ValueError(
-                'Actual and expected signatures differ.\n'
-                'Message: {}\n'
-                'Expected Signature: {}\n'
-                'Actual Signature: {}\n'.format(message_str, expected_signature, self.signature)
-            )
-
-    def _get_signed_hash(self):
+    def _get_hash(self):
         return self.message
 
     def construct_packets(self, max_packet_size: int) -> List[Packet]:
         packets = []
         # break into chunks based on chunk size, which is based on max packet size
 
-        chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.signature)
+        chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.hash)
         chunk_size = 2
         if chunk_size < 0:
             raise Exception("max_packet_size is too low, could not chunk")
@@ -76,7 +67,7 @@ class Message:
         total_chunks = len(chunks)
 
         for index, chunk_data in enumerate(chunks):
-            packet = Packet(self.signature, total_chunks, index, chunk_data)
+            packet = Packet(self.hash, total_chunks, index, chunk_data)
             packets.append(packet)
 
         return packets
@@ -87,8 +78,8 @@ class MessageBuilder:
     Builder class used to reconstruct the full `Message`s using packets
     """
 
-    def __init__(self, message_signature: str, total_chunks: int):
-        self._message_signature = message_signature
+    def __init__(self, message_hash: str, total_chunks: int):
+        self._message_hash = message_hash
         self._total_chunks = total_chunks
 
         # initialize a list of size total_chunks, setting all values to None
@@ -115,4 +106,15 @@ class MessageBuilder:
 
         message_str = ''.join([packet.chunk_data for packet in self._packets])
 
-        return Message(message_str, expected_signature=self._message_signature)
+        message = Message(message_str)
+        if message.hash != self._message_hash:
+            raise Exception(
+                'Actual and expected hashes differ.\n'
+                'Message: {}\n'
+                'Expected Hash: {}\n'
+                'Actual Hash: {}\n'.format(message_str,
+                                           self._message_hash,
+                                           message.hash)
+            )
+
+        return message
