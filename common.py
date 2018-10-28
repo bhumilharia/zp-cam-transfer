@@ -1,12 +1,16 @@
+from base64 import b64encode
 import json
 from typing import List
 
-from Crypto.Hash import SHA256
+from Cryptodome.Hash import SHA256
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature import PKCS1_v1_5
 
 from utils import split_every
 
 _BASE_PKT_SIZE = len(json.dumps({
     "message_hash": "",
+    "message_signature": "",
     "total_chunks": 999999,
     "chunk_index": 999999,
     "chunk_data": "",
@@ -18,16 +22,20 @@ class Packet:
     Represents each individual content packet to be transmitted
     """
 
-    def __init__(self, message_hash: str, total_chunks: int, chunk_index: int, chunk_data: str):
+    def __init__(self, message_hash: str, total_chunks: int, chunk_index: int, chunk_data: str,
+                 message_signature: str = None):
         self.message_hash = message_hash
         self.total_chunks = total_chunks
         self.chunk_index = chunk_index
         self.chunk_data = chunk_data
+
+        self.message_signature = message_signature
         # self.chunk_hash = "currently unused"
 
     def serialize(self) -> str:
         return json.dumps({
             "message_hash": self.message_hash,
+            "message_signature": self.message_signature,
             "total_chunks": self.total_chunks,
             "chunk_index": self.chunk_index,
             "chunk_data": self.chunk_data,
@@ -37,6 +45,7 @@ class Packet:
     def deserialize(cls, serialized_packet: str) -> 'Packet':
         packet_dict = json.loads(serialized_packet)
         packet = Packet(message_hash=packet_dict['message_hash'],
+                        message_signature=packet_dict['message_signature'],
                         total_chunks=packet_dict['total_chunks'],
                         chunk_index=packet_dict['chunk_index'],
                         chunk_data=packet_dict['chunk_data'])
@@ -51,18 +60,29 @@ class Message:
 
     def __init__(self, message_str: str):
         self.message = message_str
-        self.hash = self._get_hash()
+        self._hash_digest = SHA256.new(self.message.encode())
+        self.signature = None
 
-    def _get_hash(self):
-        h = SHA256.new()
-        h.update(self.message.encode())
-        return h.hexdigest()
+    @property
+    def hash(self) -> str:
+        return self._hash_digest.hexdigest()
+
+    def sign(self, private_key: RSA):
+        signer = PKCS1_v1_5.new(private_key)
+        sign = signer.sign(self._hash_digest)
+        self.signature = b64encode(sign).decode()
 
     def construct_packets(self, max_packet_size: int) -> List[Packet]:
-        packets = []
-        # break into chunks based on chunk size, which is based on max packet size
+        if not self.signature:
+            # this is silly, but since in the current design we don't have a special header
+            # packet, we impose this restriction
+            raise Exception("Can't construct packets without a signed message")
 
-        chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.hash)
+        packets = []
+
+        chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.hash) - len(self.signature)
+        print("Breaking the message into packets of size {}, chunk size {}".format(max_packet_size, chunk_size))
+
         chunk_size = 2
         if chunk_size < 0:
             raise Exception("max_packet_size is too low, could not chunk")
@@ -71,7 +91,7 @@ class Message:
         total_chunks = len(chunks)
 
         for index, chunk_data in enumerate(chunks):
-            packet = Packet(self.hash, total_chunks, index, chunk_data)
+            packet = Packet(self.hash, total_chunks, index, chunk_data, self.signature)
             packets.append(packet)
 
         return packets
@@ -82,8 +102,9 @@ class MessageBuilder:
     Builder class used to reconstruct the full `Message`s using packets
     """
 
-    def __init__(self, message_hash: str, total_chunks: int):
+    def __init__(self, message_hash: str, message_signature: str, total_chunks: int):
         self._message_hash = message_hash
+        self._message_signature = message_signature
         self._total_chunks = total_chunks
 
         # initialize a list of size total_chunks, setting all values to None
@@ -99,6 +120,14 @@ class MessageBuilder:
         :param packet_index: The index (sequence number) of this packet
         :param packet: Actual value
         """
+        if packet.message_hash != self._message_hash:
+            print("Discarding packet {} because message hashes don't match".format(packet.chunk_index))
+            return
+
+        if packet.message_signature != self._message_signature:
+            print("Discarding packet {} because message signatures don't match".format(packet.chunk_index))
+            return
+
         self._packets[packet_index] = self._packets[packet_index] or packet
 
     def is_complete(self) -> bool:
@@ -120,5 +149,8 @@ class MessageBuilder:
                                            self._message_hash,
                                            message.hash)
             )
+
+        # verify signature here
+
 
         return message
