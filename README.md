@@ -95,6 +95,18 @@ config folder.
 ### Running the demo
 All steps require an active virtualenv.
 
+In order to simplify development/debugging, the demo was created with the following
+approach:
+
+**Step 1**
+
+Make sender write QR images to filesystem, and make the receiver read those
+images from the filesystem. While this does not achieve the overall objective, this
+helps set the end-to-end pipe in place, so that the "filesystem" medium/transport
+can simply be swapped later for the camera processing transport.
+
+This step of the demo is working fully.
+
 ##### Sender
 ```bash
 python sender.py --debug "Put here whatever message you wish to transmit"
@@ -108,6 +120,24 @@ files are cleared every time you run `sender.py`)
 ```bash
 python receiver.py
 ```
+
+**Step 2**
+After Step 1 which uses the filesystem, we work towards getting rid of the fs.
+So basically make the sender output the QRs to a screen in a streaming fashion,
+and make the receiver read from a camera.
+
+Out of these, the sender part is implemented. Here's how to run it: 
+
+##### Sender Server
+```bash
+python sender_server.py
+```
+
+This should start a simple server. Next. go to your browser and
+browse to `http://localhost:5000`
+
+##### Camera Receiver
+This part has not yet been implemented, because of lack of time.
 
 
 ### Simplifications and Possible Improvements
@@ -139,7 +169,8 @@ to change/configure them.
 ways.
     - A more user-friendly way to build the sender will obviously be to build it as
     a web page, with text input/file upload for users, using JavaScript to simply
-    generate and display QR codes in a loop.
+    generate and display QR codes in a loop. This has already been implemented in
+    `sender_server.py` as described above
     - Similarly, the receiver could be made more robust, perhaps accepting from
     multiple screens at once using multiple camera inputs.
 

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sender</title>
+</head>
+<body>
+<h1>Sender</h1>
+Instructions:
+<ul>
+    <li>
+        Use the below text box to input your message, submit using the submit button.
+        Message is automatically trimmed
+    </li>
+    <li>On successful execution, the Streaming QR and Response sections will populate</li>
+    <li>Refresh page for a new request</li>
+    <li>Configurations: QR updates every <strong>1000</strong> milliseconds. Currently the
+        only way to stop the streaming QR is to refresh the page
+    </li>
+</ul>
+This page uses the <a href="https://davidshimjs.github.io/qrcodejs/">qrcodejs library</a>.
+
+<div>
+    <h2> Input </h2>
+    Enter your text here
+    <form>
+        <div>
+            <label>
+                <textarea id="text">Enter your text here.
+This section is prefilled with sample text in order to get you started quickly.
+Feel free to use your own text.
+                </textarea>
+            </label>
+        </div>
+        <input value="Submit" type="button"
+               onclick="getQRStream() ;">
+    </form>
+</div>
+<div>
+    <h2> Full Response </h2>
+    <div id="resp">
+    </div>
+</div>
+<div>
+    <h2> Streaming QR </h2>
+    <div id="qrcode">
+        QR will appear here
+    </div>
+</div>
+
+<script src="static/js/jquery.min.js"></script>
+<script src="static/js/qrcode.min.js"></script>
+<script type="text/javascript">
+  let counter = -1;
+  let timer = null;
+  let qrStreamResponse = null;
+
+  function setFullResponse() {
+    if (!qrStreamResponse) {
+      return;
+    }
+
+    let respHtml = "<p><strong>Message Hash:</strong> " + qrStreamResponse.message_hash + "</p>";
+    respHtml += "<p><strong>Message Signature:</strong> " + qrStreamResponse.message_signature + "</p>";
+    respHtml += "<p>List:</p>";
+
+    respHtml += "<ol>";
+    qrStreamResponse.serialized_packets.forEach(function (each) {
+      respHtml += "<li><pre>" + each + '</pre></li>'
+    });
+    respHtml += "</ol>";
+
+    // Set Response
+    $("#resp").html(respHtml);
+  }
+
+  function updateQRCode() {
+    if (!qrStreamResponse) {
+      return;
+    }
+
+    counter += 1;
+    $("#qrcode").html("");
+
+    let serializedPackets = qrStreamResponse.serialized_packets;
+    let packetsLength = serializedPackets.length;
+
+    let qrcode = new QRCode(document.getElementById("qrcode"), {
+      text: qrStreamResponse.serialized_packets[counter % packetsLength],
+      scale: 6,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.L
+    });
+  }
+
+  function getQRStream() {
+    const message = document.getElementById("text").value.trim();
+    if (!message) {
+      alert("Input can't be empty");
+      return null;
+    }
+    console.log("Message: ", message);
+
+    $.ajax({
+      contentType: 'application/json',
+      data: JSON.stringify({
+        "message": message
+      }),
+      dataType: 'json',
+      success: function (responseBody) {
+        console.log("QR Stream Response: ", responseBody);
+        qrStreamResponse = responseBody;
+        setFullResponse();
+
+        if (timer) {
+          clearInterval(timer);
+        }
+        timer = setInterval(updateQRCode, 1000);
+      },
+      error: function () {
+        console.log("Error");
+      },
+      processData: false,
+      type: 'POST',
+      url: '/api/qr-stream'
+    });
+  }
+</script>
+</body>
+</html>
