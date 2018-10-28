@@ -87,7 +87,6 @@ class Message:
         chunk_size = max_packet_size - _BASE_PKT_SIZE - len(self.hash) - len(self.signature)
         print("Breaking the message into packets of size {}, chunk size {}".format(max_packet_size, chunk_size))
 
-        chunk_size = 2
         if chunk_size < 0:
             raise Exception("max_packet_size is too low, could not chunk")
 
@@ -124,7 +123,6 @@ class MessageBuilder:
         """
         Add a packet to build the message. If the packet has been seen before,
         it is simply discarded
-        :param packet_index: The index (sequence number) of this packet
         :param packet: Actual value
         """
         if packet.message_hash != self._message_hash:

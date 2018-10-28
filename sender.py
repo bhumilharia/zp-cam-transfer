@@ -10,14 +10,10 @@ from conf import SENDER_DIR, CONFIG_DIR
 
 @click.command()
 @click.argument('message')
-@click.option('--medium', default="fs", type=click.Choice(['fs', 'screen']),
-              help='What transport medium to use')
-@click.option('--encoding', default="text", type=click.Choice(['text', 'qr']),
-              help='What to encode packets into')
-def send(message, medium, encoding):
+@click.option('--debug/--no-debug', default=False, help='Enable debugging')
+def send(message, debug):
     print('Sending message: {}'.format(message))
-    print('Using configuration: medium = {}'.format(medium))
-    print('Using configuration: encoding = {}'.format(encoding))
+    print('Using configuration: debug = {}'.format(debug))
 
     print('Reading private key from {}'.format(CONFIG_DIR))
     with open(os.path.join(CONFIG_DIR, 'private_key'), 'r') as f:
@@ -35,14 +31,18 @@ def send(message, medium, encoding):
     message = Message(message)
     message.sign(private_key)
 
-    for packet in message.construct_packets(max_packet_size=1000):
+    print('Constructing and transmitting packets')
+    for packet in message.construct_packets(max_packet_size=550):
         packet_serialized = packet.serialize()
         name = '{}_{}'.format(packet.message_hash, packet.chunk_index)
         path_without_ext = os.path.join(SENDER_DIR, name)
 
-        # write to txt file
-        with open(path_without_ext + '.txt', 'w') as f:
-            f.write(packet_serialized)
+        print('  Processing packet {}'.format(packet.chunk_index))
+
+        if debug:
+            # write to txt file
+            with open(path_without_ext + '.txt', 'w') as f:
+                f.write(packet_serialized)
 
         # write to QR image file
         qr = pyqrcode.create(packet_serialized)
